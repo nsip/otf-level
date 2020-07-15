@@ -45,19 +45,24 @@ type OtfLevelService struct {
 //
 type LevelRequest struct {
 	//
-	// method to be used for alignment one of...
+	// method to be used for levelling one of...
 	// prescribed: results in lookup/passthrough of NLP reference
-	// mapped: maps from input token through known linkages such as Australian Curriculum to find link to NLP
-	// inferred: uses text classifier lookup to try and identify desired NLP
+	// mapped: maps from input token through known scales such as NAPLAN to find the NNLP scale
 	//
-	LevelMethod string `json:"alignMethod" form:"alignMethod" query:"alignMethod"`
+	LevelMethod string `json:"levelMethod" form:"levelMethod" query:"levelMethod"`
 	//
-	// parameter to guide chosen method...
-	// prescribed: will typically be an NLP reference. Lookup may still occur to find full extent of GESDI block, or value may simply be passed through/back to user
-	// mapped: will typically be a module or node reference in the providing system, which in turn will be looked up in avialable vendor maps to find link to NLP via (for example) a common Australian Curriculum link
-	// inferred: will typically be a piece of free-form text such as a question or observation
+	// parameter to support the level calculation
+	// will typically be an NNLP progression level reference, can also be a uri.
 	//
-	LevelToken interface{} `json:"alignToken" form:"alignToken" query:"alignToken"`
+	LevelToken string `json:"levelToken" form:"levelToken" query:"levelToken"`
+	//
+	// score from the original assessment
+	//
+	AssessmentScore int `json:"assessmentScore" form:"assessmentScore" query:"assessmentScore"`
+	//
+	// if not a numeric score, then a textual judgegment such as 'mastered', 'acheived' etc.
+	//
+	AssessmentJudgement string `json:"assessmentJudgement" form:"assessmentJudgement" query:"assessmentJudgement"`
 }
 
 //
@@ -84,95 +89,6 @@ func New(options ...Option) (*OtfLevelService, error) {
 }
 
 //
-// creates the main align method
-// requires an input of request variables (in json)
-// alignMethod: one of (prescribed|mapped|inferred)
-// alignToken: string (reference such as an AC ref for mapped alignment,
-// or the text to be used as input
-// to the text classifier for inferred alignment)
-// prescribed looks up full GESDI if necessary.
-//
-func (s *OtfLevelService) buildLevelHandler() echo.HandlerFunc {
-
-	// niasURL := fmt.Sprintf("http://%s:%d/n3/graphql", s.niasHost, s.niasPort) // n3w address
-	// n3Token := s.niasToken
-	sName := s.serviceName
-	sID := s.serviceID
-
-	return func(c echo.Context) error {
-		// check required params are in input
-		ar := &LevelRequest{}
-		if err := c.Bind(ar); err != nil {
-			fmt.Println("bind error: ", err)
-			return echo.NewHTTPError(http.StatusBadRequest, err)
-		}
-
-		// // token could be any json type so convert to string
-		// stringToken := fmt.Sprintf("%v", ar.LevelToken)
-
-		// if ar.AlignMethod == "" || stringToken == "" || ar.AlignCapability == "" {
-		// 	return echo.NewHTTPError(http.StatusBadRequest, "must supply values for alignMethod, alignToken and alignCapability")
-		// }
-
-		// // set default request headers
-		// headers := map[string]string{
-		// 	"Content-Type": "application/json",
-		// 	"Accept":       "application/json",
-		// 	"Connection":   "keep-alive",
-		// 	"DNT":          "1",
-		// }
-
-		// // call the relevant services for the align method
-		// nlps := []map[string]interface{}{}
-		switch ar.LevelMethod {
-		case "mapped":
-			// headers["Authorization"] = n3Token // add n3 auth token
-			// // find any nlp links with query to n3w
-			// nlpRefs, err := mappedAlignment(stringToken, niasURL, headers)
-			// if err != nil {
-			// 	return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-			// }
-			// // for links returned now lookup full gesdi blocks
-			// for _, ref := range nlpRefs {
-			// 	results, err := prescribedAlignment(ref, tclkpBaseURL, headers)
-			// 	if err != nil {
-			// 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-			// 	}
-			// 	nlps = append(nlps, results...)
-			// }
-			// // this block creates a failsafe, if no mapped results were found
-			// // forces a fallthrough to perform an inferred lookup
-			// if len(nlpRefs) != 0 {
-			// 	break
-			// }
-			// fmt.Println("no mapped results found, falling back to inference")
-			// fallthrough
-		case "prescribed":
-			// results, err := prescribedAlignment(stringToken, tclkpBaseURL, headers)
-			// if err != nil {
-			// 	return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-			// }
-			// nlps = append(nlps, results...)
-		default:
-			// _ = niasURL
-			// return echo.NewHTTPError(http.StatusBadRequest, "alignMethod not supported")
-		}
-		// put the whole response together
-		levelResponse := map[string]interface{}{
-			// "alignments":       nlps,
-			// "alignMethod":      ar.AlignMethod,
-			// "alignToken":       ar.AlignToken,
-			// "alignCapability":  ar.AlignCapability,
-			"levelServiceID":   sID,
-			"levelServiceName": sName,
-		}
-
-		return c.JSON(http.StatusOK, levelResponse)
-
-	}
-}
-
-//
 // start the service running
 //
 func (s *OtfLevelService) Start() {
@@ -188,6 +104,167 @@ func (s *OtfLevelService) Start() {
 	}(address)
 
 }
+
+//
+// creates the main align method
+// requires an input of request variables (in json)
+// levelMethod: one of (prescribed|mapped)
+// levelToken: NNLP progress level identifier (string or uri)
+// assessmentScore:  original score from assessment system
+//
+func (s *OtfLevelService) buildLevelHandler() echo.HandlerFunc {
+
+	niasURL := fmt.Sprintf("http://%s:%d/n3/graphql", s.niasHost, s.niasPort) // n3w address
+	n3Token := s.niasToken
+	sName := s.serviceName
+	sID := s.serviceID
+
+	return func(c echo.Context) error {
+		// check required params are in input
+		lr := &LevelRequest{}
+		if err := c.Bind(lr); err != nil {
+			fmt.Println("bind error: ", err)
+			return echo.NewHTTPError(http.StatusBadRequest, err)
+		}
+
+		fmt.Printf("\nlevel-request:%+v\n\n", lr)
+
+		if lr.LevelMethod == "" || lr.LevelToken == "" {
+			return echo.NewHTTPError(http.StatusBadRequest, "must supply values for levelMethod & levelToken")
+		}
+
+		// set default request headers
+		headers := map[string]string{
+			"Content-Type":  "application/json",
+			"Accept":        "application/json",
+			"Connection":    "keep-alive",
+			"DNT":           "1",
+			"Authorization": n3Token,
+		}
+
+		result, err := calculateLevel(lr, niasURL, headers)
+		if err != nil {
+			fmt.Println("calculation error: ", err)
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+
+		levelResponse := map[string]interface{}{
+			"calculatedLevel":     result,
+			"levelMethod":         lr.LevelMethod,
+			"levelToken":          lr.LevelToken,
+			"assessmentScore":     lr.AssessmentScore,
+			"assessmentJudgement": lr.AssessmentJudgement,
+			"levelServiceID":      sID,
+			"levelServiceName":    sName,
+		}
+
+		return c.JSON(http.StatusOK, levelResponse)
+
+	}
+}
+
+func calculateLevel(lr *LevelRequest, url string, headers map[string]string) (map[string]interface{}, error) {
+
+	method := "POST"
+	body := bytes.NewBuffer(buildQuery(lr.LevelToken))
+
+	// call the n3 service to find the progression-level scale
+	res, err := util.Fetch(method, url, headers, body)
+	if err != nil {
+		return nil, err
+	}
+
+	// extract the scale object from the response
+	plScale := gjson.GetBytes(res, "data.q.OtfScale.0")
+	if !plScale.Exists() {
+		return nil, errors.New("no progress-level scale registered")
+	}
+
+	// extract the scale values
+	var low, high, achieved, partiallyAchieved, scaledScore int64
+	low = plScale.Get("low").Int()
+	high = plScale.Get("high").Int()
+	_ = low
+	_ = high
+	achieved = plScale.Get("achieved").Int()
+	partiallyAchieved = plScale.Get("partiallyAchieved").Int()
+
+	switch lr.LevelMethod {
+	case "prescribed":
+		switch lr.AssessmentJudgement {
+		case "mastered", "fully mastered":
+			scaledScore = achieved
+		case "intermittent", "partial", "satisfied":
+			scaledScore = partiallyAchieved
+		}
+	case "mapped":
+		// fetch the lookup
+		// then calc against scale
+	default:
+		return nil, errors.New("levelMethod not supported")
+	}
+
+	result := map[string]interface{}{
+		"method":           lr.LevelMethod,
+		"progressionLevel": lr.LevelToken,
+		"scaledScore":      scaledScore,
+	}
+
+	return result, nil
+}
+
+//
+// helper type to capture
+// graphql queries for sending to
+// the n3 service
+//
+type GQLQuery struct {
+	Query     string
+	Variables map[string]interface{}
+}
+
+//
+// constructs the graphql query for
+// mapped alignment requests
+// token: the value to start searching from in n3
+//
+// returns: the byte array of the whole query request as json
+//
+func buildQuery(token string) []byte {
+
+	// the data we want returned
+	q := `query nlpLinksQuery($qspec: QueryInput!) { 
+		q(qspec: $qspec) { 
+	    	OtfScale {
+      			partiallyAchieved
+      			progressionLevel
+      			scaleItemId
+      			achieved
+      			high
+      			low
+    		}
+		}
+	}`
+	// the parameters of the query, defines staet-point and traversal in n3
+	v := map[string]interface{}{
+		"qspec": map[string]interface{}{
+			"queryType":  "findByValue",
+			"queryValue": token,
+		},
+	}
+
+	gql := GQLQuery{Query: q, Variables: v}
+	jsonStr, err := json.Marshal(gql)
+	if err != nil {
+		fmt.Println("gql query json marshal error: ", err)
+	}
+
+	return jsonStr
+}
+
+//
+// ------
+//
 
 //
 // calls the n3w server to find linked nlps
@@ -282,58 +359,48 @@ func inferredAlignment(token, capability, url string, headers map[string]string)
 
 }
 
-//
-// helper type to capture
-// graphql queries for sending to
-// the n3 service
-//
-type GQLQuery struct {
-	Query     string
-	Variables map[string]interface{}
-}
+// //
+// // constructs the graphql query for
+// // mapped alignment requests
+// // token: the value to start searching from in n3
+// //
+// // returns: the byte array of the whole query request as json
+// //
+// func buildQuery(token string) []byte {
 
-//
-// constructs the graphql query for
-// mapped alignment requests
-// token: the value to start searching from in n3
-//
-// returns: the byte array of the whole query request as json
-//
-func buildQuery(token string) []byte {
+// 	// the data we want returned
+// 	q := `query nlpLinksQuery($qspec: QueryInput!) {
+// 		q(qspec: $qspec) {
+// 			OtfNLPLink {
+// 				linkReference
+// 				nlpNodeId
+// 				nlpReference
+// 				nlpLinkVersion
+// 			}
+// 			OtfProviderItem {
+// 				providerName
+// 				externalReference
+// 				itemVersion
+// 			}
+// 		}
+// 	}`
+// 	// the parameters of the query, defines staet-point and traversal in n3
+// 	v := map[string]interface{}{
+// 		"qspec": map[string]interface{}{
+// 			"queryType":  "traversalWithValue",
+// 			"queryValue": token,
+// 			"traversal":  []string{"OtfProviderItem", "OtfNLPLink"},
+// 		},
+// 	}
 
-	// the data we want returned
-	q := `query nlpLinksQuery($qspec: QueryInput!) { 
-		q(qspec: $qspec) { 
-			OtfNLPLink { 
-				linkReference 
-				nlpNodeId 
-				nlpReference 
-				nlpLinkVersion 
-			} 
-			OtfProviderItem { 
-				providerName 
-				externalReference 
-				itemVersion
-			}  
-		}
-	}`
-	// the parameters of the query, defines staet-point and traversal in n3
-	v := map[string]interface{}{
-		"qspec": map[string]interface{}{
-			"queryType":  "traversalWithValue",
-			"queryValue": token,
-			"traversal":  []string{"OtfProviderItem", "OtfNLPLink"},
-		},
-	}
+// 	gql := GQLQuery{Query: q, Variables: v}
+// 	jsonStr, err := json.Marshal(gql)
+// 	if err != nil {
+// 		fmt.Println("gql query json marshal error: ", err)
+// 	}
 
-	gql := GQLQuery{Query: q, Variables: v}
-	jsonStr, err := json.Marshal(gql)
-	if err != nil {
-		fmt.Println("gql query json marshal error: ", err)
-	}
-
-	return jsonStr
-}
+// 	return jsonStr
+// }
 
 //
 // create the simplified return structure

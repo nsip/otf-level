@@ -27,10 +27,10 @@ input:
       - nats://127.0.0.1:4222
 
 pipeline:
-  processors: []
+  processors:
     # - noop: null
 
-  # - process_dag:
+  - process_dag:
 
   #     brightpath_composite_token:
   #         conditions:
@@ -79,26 +79,55 @@ pipeline:
   #             otf.id.studentGivenName = original.student_participation.enrolment.student.first_name
   #             otf.id.studentFamilyName = original.student_participation.enrolment.student.last_name
 
-  #     lpofa_align:
-  #         premap:
-  #           alignMethod: meta.alignMethod
-  #           alignCapability: meta.capability
-  #           alignToken: original.object.definition.description.en-US
-  #         processors:
-  #           - http:
-  #               parallel: false 
-  #               request:
-  #                 url: http://localhost:1324/align
-  #                 headers:
-  #                   Content-Type: application/json
-  #                 verb: POST
-  #         postmap:
-  #           otf.method: alignMethod
-  #           otf.token: alignToken
-  #           otf.alignments: alignments
-  #           otf.alignmentServiceID: alignServiceID
-  #           otf.alignmentServiceName: alignServiceName
-  #           otf.capability: alignCapability
+      extract_progLevel:
+          premap: {}
+          processors:
+            - bloblang: |
+                root = this
+                meta.progressionLevel = otf.alignments.index(0).progressionLevel
+                meta.judgement = "partial"
+          postmap: 
+            otf.progressionLevel: meta.progressionLevel
+            otf.judgement: meta.judgement
+
+
+      xapi_level:
+          premap:
+            levelMethod: meta.levelMethod
+            levelToken: otf.progressionLevel
+            asessmentJudgement: original.verb.display.en-US
+          processors:
+            - http:
+                parallel: false 
+                request:
+                  url: http://localhost:1327/level
+                  headers:
+                    Content-Type: application/json
+                  verb: POST
+          postmap:
+            otf.levelMethod: levelMethod
+            otf.levelServiceID: levelServiceID
+            otf.levelServiceName: levelServiceName
+            otf.level: calculatedLevel
+
+      spa_level:
+          premap:
+            levelMethod: meta.levelMethod
+            levelToken: otf.progressionLevel
+            assessmentJudgement: otf.judgement
+          processors:
+            - http:
+                parallel: false
+                request:
+                  url: http://localhost:1327/level
+                  headers:
+                    Content-Type: application/json
+                  verb: POST
+          postmap:
+            otf.levelMethod: levelMethod
+            otf.levelServiceID: levelServiceID
+            otf.levelServiceName: levelServiceName
+            otf.level: calculatedLevel
 
   #     lpofa_map:
   #       dependencies:
@@ -176,9 +205,9 @@ pipeline:
   #             otf.id.studentGivenName = original.FirstName
   #             otf.id.studentFamilyName = original.LastName
   
-  # - catch:
-  #   - log:
-  #       message: "Processing failed due to: ${!error()}"
+  - catch:
+    - log:
+        message: "Processing failed due to: ${!error()}"
 
 
 output:

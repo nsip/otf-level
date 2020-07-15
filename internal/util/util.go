@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"sync"
 	"time"
 
@@ -91,20 +92,25 @@ func GenerateID() string {
 //
 func Fetch(method string, url string, header map[string]string, body io.Reader) ([]byte, error) {
 
+	//
+	// TODO: turn off in production
+	//
+	fmt.Printf("\nmethod:%v\nurl:%v\n,header:%+v\n\n", method, url, header)
+
 	// Create request.
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
 
-	// //
-	// // TODO: turn off in production
-	// //
-	// reqDump, err := httputil.DumpRequestOut(req, true)
-	// if err != nil {
-	// 	fmt.Println("req-dump error: ", err)
-	// }
-	// fmt.Printf("\nrequest\n\n%s\n\n", reqDump)
+	//
+	// TODO: turn off in production
+	//
+	reqDump, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		fmt.Println("req-dump error: ", err)
+	}
+	fmt.Printf("\noutbound request\n\n%s\n\n", reqDump)
 
 	// Add any required headers.
 	for key, value := range header {
@@ -117,14 +123,14 @@ func Fetch(method string, url string, header map[string]string, body io.Reader) 
 		return nil, err
 	}
 
-	// //
-	// // TODO: turn off in production
-	// //
-	// responseDump, err := httputil.DumpResponse(res, true)
-	// if err != nil {
-	// 	fmt.Println("resp-dump error: ", err)
-	// }
-	// fmt.Printf("\nresponse:\n\n%s\n\n", responseDump)
+	//
+	// TODO: turn off in production
+	//
+	responseDump, err := httputil.DumpResponse(res, true)
+	if err != nil {
+		fmt.Println("resp-dump error: ", err)
+	}
+	fmt.Printf("\nresponse:\n\n%s\n\n", responseDump)
 
 	// If response from network call is not 200, return error.
 	if res.StatusCode != http.StatusOK {
