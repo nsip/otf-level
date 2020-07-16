@@ -1,3 +1,8 @@
+# 
+# runs assessment data that has been through the 
+# alignment process through the levelling service
+# for scoring/scaling
+# 
 http:
   address: 0.0.0.0:34197
   read_timeout: 5s
@@ -24,7 +29,7 @@ input:
     subject: otf.aligned
     unsubscribe_on_close: false
     urls:
-      - nats://127.0.0.1:4222
+      - nats://${NATS_HOST}:4222
 
 pipeline:
   processors:
@@ -79,7 +84,7 @@ pipeline:
   #             otf.id.studentGivenName = original.student_participation.enrolment.student.first_name
   #             otf.id.studentFamilyName = original.student_participation.enrolment.student.last_name
 
-      extract_progLevel:
+      extract_progLevel:        
           premap: {}
           processors:
             - bloblang: |
@@ -92,15 +97,17 @@ pipeline:
 
 
       xapi_level:
+          conditions:
+            - bloblang: this.exists("original.actor.mbox") # xapi files only
           premap:
             levelMethod: meta.levelMethod
             levelToken: otf.progressionLevel
-            asessmentJudgement: original.verb.display.en-US
+            assessmentJudgement: original.verb.display.en-US
           processors:
             - http:
                 parallel: false 
                 request:
-                  url: http://localhost:1327/level
+                  url: http://${LEVELLER_HOST}:1327/level
                   headers:
                     Content-Type: application/json
                   verb: POST
@@ -111,6 +118,8 @@ pipeline:
             otf.level: calculatedLevel
 
       spa_level:
+          conditions:
+            - bloblang: this.meta.providerName == "SPA" # ensure is a sreams record 
           premap:
             levelMethod: meta.levelMethod
             levelToken: otf.progressionLevel
@@ -119,7 +128,7 @@ pipeline:
             - http:
                 parallel: false
                 request:
-                  url: http://localhost:1327/level
+                  url: http://${LEVELLER_HOST}:1327/level
                   headers:
                     Content-Type: application/json
                   verb: POST
@@ -212,7 +221,7 @@ pipeline:
 
 output:
   files:
-    path: /Users/mattfarmer/otfdata/audit/level/${!count("files")}-${!timestamp_unix_nano()}.json
+    path: ${PDM_ROOT}/audit/level/${!count("files")}-${!timestamp_unix_nano()}.json
   processors:
     # don't save any files that did not get processed by the aligner
   - bloblang: |

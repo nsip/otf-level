@@ -1,3 +1,9 @@
+# 
+# an otf-reader will watch a folder for service map
+# updates and publish them to the nats q. below
+# this workflow reads from that q and publishes the
+# records to nias3
+# 
 http:
   address: 0.0.0.0:34198
   read_timeout: 5s
@@ -24,16 +30,15 @@ input:
     subject: otf.maps.level
     unsubscribe_on_close: false
     urls:
-      - nats://127.0.0.1:4222
+      - nats://${NATS_HOST}:4222
 buffer:
   type: none
   none: {}
 pipeline:
   processors:
+    # just extract the original data, we don't need the meta-data for n3 
     - bloblang: |
-        root = this.original
-    # - archive:
-        # format: json_array
+        root = this.original 
   threads: 1
 
 # output:
@@ -80,7 +85,7 @@ output:
       enabled: false
       root_cas_file: ""
       skip_cert_verify: false
-    url: http://localhost:1323/n3/publish
+    url: http://${N3_HOST}:1323/n3/publish
     verb: POST
 
 resources:
