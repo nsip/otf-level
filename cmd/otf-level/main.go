@@ -27,7 +27,7 @@ func main() {
 	ff.Parse(fs, os.Args[1:],
 		ff.WithConfigFileFlag("config"),
 		ff.WithConfigFileParser(ff.JSONParser),
-		ff.WithEnvVarPrefix("OTF_ALIGN_SRVC"),
+		ff.WithEnvVarPrefix("OTF_LEVEL_SRVC"),
 	)
 
 	opts := []otflvl.Option{

@@ -33,67 +33,18 @@ input:
 
 pipeline:
   processors:
-    # - noop: null
-
   - process_dag:
-
-  #     brightpath_composite_token:
-  #         conditions:
-  #           - bloblang: original.score.type() != "null" # ignore students with null score
-  #         premap: {}
-  #         processors:
-  #           - bloblang: |
-  #               root = this
-  #               meta.compToken = "%s %v".format(original.test.scale, original.score)
-  #         postmap: 
-  #           otf.compToken: meta.compToken
-
-  #     brightpath_align:
-  #         conditions:
-  #           - bloblang: original.score.type() != "null" # ignore students with null score
-  #         premap:
-  #           alignMethod: meta.alignMethod
-  #           alignCapability: meta.capability
-  #           alignToken: otf.compToken
-  #         processors:
-  #           - http:
-  #               parallel: false
-  #               request:
-  #                 url: http://localhost:1324/align
-  #                 headers:
-  #                   Content-Type: application/json
-  #                 verb: POST
-  #         postmap:
-  #           otf.method: alignMethod
-  #           otf.token: alignToken
-  #           otf.alignments: alignments
-  #           otf.alignmentServiceID: alignServiceID
-  #           otf.alignmentServiceName: alignServiceName
-  #           otf.capability: alignCapability
-
-
-  #     brightpath_map:
-  #       dependencies:
-  #         - otf.token # ensures align service has been called first
-  #       conditions:
-  #         - bloblang: this.meta.providerName == "BrightPath" # ensure is a brightpath record
-  #       processors:
-  #         - bloblang: |
-  #             root = this
-  #             otf.id.studentID = original.student_participation.enrolment.student.identifiers.0.identifier
-  #             otf.id.studentGivenName = original.student_participation.enrolment.student.first_name
-  #             otf.id.studentFamilyName = original.student_participation.enrolment.student.last_name
 
       extract_progLevel:        
           premap: {}
           processors:
             - bloblang: |
                 root = this
-                meta.progressionLevel = otf.alignments.index(0).progressionLevel
+                meta.progressionLevel = otf.align.alignments.index(0).progressionLevel
                 meta.judgement = "partial"
           postmap: 
             otf.progressionLevel: meta.progressionLevel
-            otf.judgement: meta.judgement
+            otf.level.assessmentToken: meta.judgement
 
 
       xapi_level:
@@ -101,8 +52,8 @@ pipeline:
             - bloblang: this.exists("original.actor.mbox") # xapi files only
           premap:
             levelMethod: meta.levelMethod
-            levelToken: otf.progressionLevel
-            assessmentJudgement: original.verb.display.en-US
+            levelProgLevel: otf.progressionLevel
+            assessmentToken: original.verb.display.en-US
           processors:
             - http:
                 parallel: false 
@@ -112,18 +63,20 @@ pipeline:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.levelMethod: levelMethod
-            otf.levelServiceID: levelServiceID
-            otf.levelServiceName: levelServiceName
-            otf.level: calculatedLevel
+            otf.level.levelMethod: levelMethod
+            otf.level.levelServiceID: levelServiceID
+            otf.level.levelServiceName: levelServiceName
+            otf.level.calculatedScore: calculatedLevel
+            # otf.level.assessmentScore: assessmentScore #not needed
+            otf.level.assessmentToken: assessmentToken
 
       spa_level:
           conditions:
             - bloblang: this.meta.providerName == "SPA" # ensure is a sreams record 
           premap:
             levelMethod: meta.levelMethod
-            levelToken: otf.progressionLevel
-            assessmentJudgement: otf.judgement
+            levelProgLevel: otf.progressionLevel
+            assessmentToken: original.1 
           processors:
             - http:
                 parallel: false
@@ -133,87 +86,59 @@ pipeline:
                     Content-Type: application/json
                   verb: POST
           postmap:
-            otf.levelMethod: levelMethod
-            otf.levelServiceID: levelServiceID
-            otf.levelServiceName: levelServiceName
-            otf.level: calculatedLevel
+            otf.level.levelMethod: levelMethod
+            otf.level.levelServiceID: levelServiceID
+            otf.level.levelServiceName: levelServiceName
+            otf.level.calculatedScore: calculatedLevel
+            # otf.level.assessmentScore: assessmentScore # only gives grade
+            otf.level.assessmentToken: assessmentToken
 
-  #     lpofa_map:
-  #       dependencies:
-  #         - otf.token # ensures align service has been called first
-  #       conditions:
-  #         - bloblang: this.exists("original.actor.mbox") # xapi files only
-  #       processors:
-  #         - bloblang: |
-  #             root = this
-  #             otf.id.studentID = original.actor.mbox
-  #             otf.id.studentFullName = original.actor.name
+      mathspathway_level:
+          conditions:
+            - bloblang: this.meta.providerName == "MathsPathway" # ensure is a mathspathway record 
+          premap:
+            levelMethod: meta.levelMethod
+            levelProgLevel: otf.progressionLevel
+            assessmentToken: otf.level.assessmentToken
+          processors:
+            - http:
+                parallel: false
+                request:
+                  url: http://${LEVELLER_HOST}:1327/level
+                  headers:
+                    Content-Type: application/json
+                  verb: POST
+          postmap:
+            otf.level.levelMethod: levelMethod
+            otf.level.levelServiceID: levelServiceID
+            otf.level.levelServiceName: levelServiceName
+            otf.level.calculatedScore: calculatedLevel
+            # otf.level.assessmentScore: assessmentScore # only gives judgement
 
-  #     mathspathway_align:
-  #         premap:
-  #           alignMethod: meta.alignMethod
-  #           alignCapability: meta.capability
-  #           alignToken: original.module_id
-  #         processors:
-  #           - http:
-  #               parallel: false
-  #               request:
-  #                 url: http://localhost:1324/align
-  #                 headers:
-  #                   Content-Type: application/json
-  #                 verb: POST
-  #         postmap:
-  #           otf.method: alignMethod
-  #           otf.token: alignToken
-  #           otf.alignments: alignments
-  #           otf.alignmentServiceID: alignServiceID
-  #           otf.alignmentServiceName: alignServiceName
-  #           otf.capability: alignCapability
+      brightpath_level:
+          conditions:
+            - bloblang: this.meta.providerName == "BrightPath" # ensure is a brightpath record 
+          premap:
+            levelMethod: meta.levelMethod
+            levelProgLevel: otf.progressionLevel
+            assessmentToken: original.test.scale #otf.level.assessmentToken
+            assessmentScore: original.score
+          processors:
+            - http:
+                parallel: false
+                request:
+                  url: http://${LEVELLER_HOST}:1327/level
+                  headers:
+                    Content-Type: application/json
+                  verb: POST
+          postmap:
+            otf.level.levelMethod: levelMethod
+            otf.level.levelServiceID: levelServiceID
+            otf.level.levelServiceName: levelServiceName
+            otf.level.calculatedScore: calculatedLevel
+            otf.level.assessmentScore: assessmentScore
+            otf.level.assessmentToken: assessmentToken
 
-  #     mathspathway_map:
-  #       dependencies:
-  #         - otf.token # ensures align service has been called first
-  #       conditions:
-  #         - bloblang: this.meta.providerName == "MathsPathway" # ensure is a mathspathway record
-  #       processors:
-  #         - bloblang: |
-  #             root = this
-  #             otf.id.studentID = original.student_id
-  #             # otf.id.studentFullName = "must be externally resolved"
-
-  #     spa_align:
-  #         premap:
-  #           alignMethod: meta.alignMethod
-  #           alignCapability: meta.capability
-  #           alignToken: original.TestCode
-  #         processors:
-  #           - http:
-  #               parallel: false
-  #               request:
-  #                 url: http://localhost:1324/align
-  #                 headers:
-  #                   Content-Type: application/json
-  #                 verb: POST
-  #         postmap:
-  #           otf.method: alignMethod
-  #           otf.token: alignToken
-  #           otf.alignments: alignments
-  #           otf.alignmentServiceID: alignServiceID
-  #           otf.alignmentServiceName: alignServiceName
-  #           otf.capability: alignCapability
-
-  #     spa_map:
-  #       dependencies:
-  #         - otf.token # ensures align service has been called first
-  #       conditions:
-  #         - bloblang: this.meta.providerName == "SPA" # ensure is a sreams record
-  #       processors:
-  #         - bloblang: |
-  #             root = this
-  #             otf.id.studentID = original.StudentID
-  #             otf.id.studentGivenName = original.FirstName
-  #             otf.id.studentFamilyName = original.LastName
-  
   - catch:
     - log:
         message: "Processing failed due to: ${!error()}"
@@ -223,9 +148,9 @@ output:
   files:
     path: ${PDM_ROOT}/audit/level/${!count("files")}-${!timestamp_unix_nano()}.json
   processors:
-    # don't save any files that did not get processed by the aligner
+    # don't save any files that did not get processed by the leveller
   - bloblang: |
-      root = if !this.exists("otf.token") {
+      root = if !this.exists("otf.level.calculatedScore") {
         deleted()
       }    
 

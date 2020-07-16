@@ -9,7 +9,6 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"net/http/httputil"
 	"sync"
 	"time"
 
@@ -49,13 +48,13 @@ func newNetClient() *http.Client {
 //
 func GenerateName() string {
 
-	name := "aligner"
+	name := "leveller"
 
 	// generate a random number
 	number0, err := rand.Int(rand.Reader, big.NewInt(10000000))
 
 	hd := hashids.NewData()
-	hd.Salt = "otf-align random name generator 2020"
+	hd.Salt = "otf-level random name generator 2020"
 	hd.MinLength = 5
 	h, err := hashids.NewWithData(hd)
 	if err != nil {
@@ -92,10 +91,10 @@ func GenerateID() string {
 //
 func Fetch(method string, url string, header map[string]string, body io.Reader) ([]byte, error) {
 
-	//
-	// TODO: turn off in production
-	//
-	fmt.Printf("\nmethod:%v\nurl:%v\n,header:%+v\n\n", method, url, header)
+	// //
+	// // TODO: turn off in production
+	// //
+	// fmt.Printf("\nmethod:%v\nurl:%v\n,header:%+v\n\n", method, url, header)
 
 	// Create request.
 	req, err := http.NewRequest(method, url, body)
@@ -103,14 +102,14 @@ func Fetch(method string, url string, header map[string]string, body io.Reader) 
 		return nil, err
 	}
 
-	//
-	// TODO: turn off in production
-	//
-	reqDump, err := httputil.DumpRequestOut(req, true)
-	if err != nil {
-		fmt.Println("req-dump error: ", err)
-	}
-	fmt.Printf("\noutbound request\n\n%s\n\n", reqDump)
+	// //
+	// // TODO: turn off in production
+	// //
+	// reqDump, err := httputil.DumpRequestOut(req, true)
+	// if err != nil {
+	// 	fmt.Println("req-dump error: ", err)
+	// }
+	// fmt.Printf("\noutbound request\n\n%s\n\n", reqDump)
 
 	// Add any required headers.
 	for key, value := range header {
@@ -123,14 +122,14 @@ func Fetch(method string, url string, header map[string]string, body io.Reader) 
 		return nil, err
 	}
 
-	//
-	// TODO: turn off in production
-	//
-	responseDump, err := httputil.DumpResponse(res, true)
-	if err != nil {
-		fmt.Println("resp-dump error: ", err)
-	}
-	fmt.Printf("\nresponse:\n\n%s\n\n", responseDump)
+	// //
+	// // TODO: turn off in production
+	// //
+	// responseDump, err := httputil.DumpResponse(res, true)
+	// if err != nil {
+	// 	fmt.Println("resp-dump error: ", err)
+	// }
+	// fmt.Printf("\nresponse:\n\n%s\n\n", responseDump)
 
 	// If response from network call is not 200, return error.
 	if res.StatusCode != http.StatusOK {
