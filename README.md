@@ -72,6 +72,8 @@ These are the configuration options:
 |niasPort|int|yes|1323|port of the n3w service|
 |niasToken|string|yes|a demo token|jwt token for accessing the n3w server|
 
+
+
 # levelling methods
 otf-level is a facade service which will invoke further services in order to determine the nationally scaled score of a particular assessment result or observation.
 
