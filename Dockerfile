@@ -1,9 +1,9 @@
 ###########################
 # INSTRUCTIONS
 ############################
-# BUILD: docker build -t nsip/otf-level .
-# TEST: docker run -it -p3000:3000 nsip/otf-level .
-# RUN: docker run -d -p3000:3000 nsip/otf-level
+# BUILD: docker build -t nsip/otf-level:develop .
+# TEST: docker run -it -p3000:3000 nsip/otf-leve:developl .
+# RUN: docker run -d -p3000:3000 nsip/otf-level:develop
 #
 ###########################
 # DOCUMENTATION
