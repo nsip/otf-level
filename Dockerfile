@@ -1,9 +1,21 @@
 ###########################
 # INSTRUCTIONS
 ############################
-# BUILD: docker build -t nsip/otf-level:develop .
-# TEST: docker run -it -p3000:3000 nsip/otf-leve:developl .
-# RUN: docker run -d -p3000:3000 nsip/otf-level:develop
+# BUILD
+#	docker build -t nsip/otf-level:latest -t nsip/otf-level:v0.1.0 .
+# TEST: docker run -it -v $PWD/test/data:/data -v $PWD/test/config.json:/config.json nsip/otf-level:develop .
+# RUN: docker run -d nsip/otf-level:develop
+#
+# PUSH
+#	Public:
+#		docker push nsip/otf-level:v0.1.0
+#		docker push nsip/otf-level:latest
+#
+#	Private:
+#		docker tag nsip/otf-level:v0.1.0 the.hub.nsip.edu.au:3500/nsip/otf-level:v0.1.0
+#		docker tag nsip/otf-level:latest the.hub.nsip.edu.au:3500/nsip/otf-level:latest
+#		docker push the.hub.nsip.edu.au:3500/nsip/otf-level:v0.1.0
+#		docker push the.hub.nsip.edu.au:3500/nsip/otf-level:latest
 #
 ###########################
 # DOCUMENTATION
@@ -12,25 +24,28 @@
 ###########################
 # STEP 0 Get them certificates
 ############################
-FROM alpine:latest as certs
-RUN apk --no-cache add ca-certificates
+# (note, step 2 is using alpine now) 
+# FROM alpine:latest as certs
 
 ############################
 # STEP 1 build executable binary (go.mod version)
 ############################
-FROM golang:1.14-stretch as builder
+FROM golang:1.15.0-alpine3.12 as builder
+RUN apk --no-cache add ca-certificates
+RUN apk update && apk add git
+RUN apk add gcc g++
 RUN mkdir -p /build
 WORKDIR /build
 COPY . .
 WORKDIR cmd/otf-level
-RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/server
+RUN go build -o /build/app
 
 ############################
 # STEP 2 build a small image
 ############################
-FROM debian:stretch
-COPY --from=builder /go/bin/server /go/bin/server
+#FROM debian:stretch
+FROM alpine
+COPY --from=builder /build/app /app
 # NOTE - make sure it is the last build that still copies the files
-COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-WORKDIR /go/bin
-CMD ["/go/bin/server"]
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+CMD ["./app"]
