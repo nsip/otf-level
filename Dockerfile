@@ -3,8 +3,8 @@
 ############################
 # BUILD
 #	docker build -t nsip/otf-level:latest -t nsip/otf-level:v0.1.0 .
-# TEST: docker run -it -v $PWD/test/data:/data -v $PWD/test/config.json:/config.json nsip/otf-level:develop .
-# RUN: docker run -d nsip/otf-level:develop
+# TEST: docker run -it nsip/otf-level:latest .
+# RUN: docker run -d nsip/otf-level:latest
 #
 # PUSH
 #	Public:
@@ -48,4 +48,4 @@ FROM alpine
 COPY --from=builder /build/app /app
 # NOTE - make sure it is the last build that still copies the files
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-CMD ["./app"]
+ENTRYPOINT ["./app", "--folder=/data", "--config=/config.json"]
