@@ -48,4 +48,4 @@ FROM alpine
 COPY --from=builder /build/app /app
 # NOTE - make sure it is the last build that still copies the files
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-ENTRYPOINT ["./app", "--folder=/data", "--config=/config.json"]
+ENTRYPOINT ["./app",]
