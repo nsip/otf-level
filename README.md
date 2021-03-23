@@ -1,6 +1,13 @@
 # otf-level
 Web-service for consistent scaling of nnlp-oriented assessment results
 
+# build
+
+```
+cd cmd
+go build
+```
+
 # usage
 otf-level is a web service that accepts simple requests for consistent scoring of assessment data against the National Learning Progressions common scale.
 

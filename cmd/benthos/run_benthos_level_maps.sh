@@ -8,4 +8,4 @@ curl -s  -X POST http://localhost:1323/admin/newdemocontext -d userName=nsipOtfL
 # now run the workflow
 # 
 benthos lint levelMaps.yaml
-clear && benthos -c levelMaps.yaml
+clear && benthos --chilled -c levelMaps.yaml

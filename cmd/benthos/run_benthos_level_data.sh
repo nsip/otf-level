@@ -2,4 +2,4 @@
 
 benthos lint levelData.yaml
 
-clear && benthos -c levelData.yaml
+clear && benthos --chilled -c levelData.yaml
