@@ -1,7 +1,7 @@
 package otflevel
 
 import (
-	"github.com/nsip/otf-level/internal/util"
+	util "github.com/nsip/otf-util"
 )
 
 type Option func(*OtfLevelService) error
@@ -32,7 +32,7 @@ func Name(name string) Option {
 			s.serviceName = name
 			return nil
 		}
-		s.serviceName = util.GenerateName()
+		s.serviceName = util.GenerateName("otf-level")
 		return nil
 	}
 }

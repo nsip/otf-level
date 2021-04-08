@@ -12,7 +12,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
-	"github.com/nsip/otf-level/internal/util"
+	util "github.com/nsip/otf-util"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 )
@@ -295,7 +295,7 @@ func (s *OtfLevelService) Shutdown() {
 func (s *OtfLevelService) PrintConfig() {
 
 	fmt.Println("\n\tOTF-Level Service Configuration")
-	fmt.Println("\t---------------------------------\n")
+	fmt.Println("\t---------------------------------")
 
 	s.printID()
 	s.printNiasConfig()
