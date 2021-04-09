@@ -59,7 +59,7 @@ type LevelRequest struct {
 	//
 	AssessmentScore int `json:"assessmentScore" form:"assessmentScore" query:"assessmentScore"`
 	//
-	// if not a numeric score, then a textual judgegment such as 'mastered', 'acheived', or  a grade such as A-F
+	// if not a numeric score, then a textual judgement such as 'mastered', 'achieved', or  a grade such as A-F
 	//
 	AssessmentToken string `json:"assessmentToken" form:"assessmentToken" query:"assessmentToken"`
 }
@@ -262,7 +262,7 @@ func buildQuery(token string) []byte {
     		}
 		}
 	}`
-	// the parameters of the query, defines staet-point and traversal in n3
+	// the parameters of the query, defines state-point and traversal in n3
 	v := map[string]interface{}{
 		"qspec": map[string]interface{}{
 			"queryType":  "findByValue",

@@ -1,12 +1,14 @@
 # otf-level
+
 Web-service for consistent scaling of nnlp-oriented assessment results
 
-# usage
+## usage
+
 otf-level is a web service that accepts simple requests for consistent scoring of assessment data against the National Learning Progressions common scale.
 
 The otf-align API is simple:
 
-```
+```bash
 > curl -v http://localhost:1327/level \ 
 > -H 'Content-Type: application/json' \
   -d '{"levelMethod":"prescribed", \
@@ -16,6 +18,7 @@ The otf-align API is simple:
 ```
 
 the two required parameters are:
+
 - levelMethod: choice of mapped | prescribed (see full description below)
 - levelProgLevel: the NNLP Progression Level for this query
 the other two parameters can be used jointly or singly:
@@ -23,7 +26,8 @@ the other two parameters can be used jointly or singly:
 - assessmentToken: a textual result - such as A-F grade or a judgement such as 'mastery'
 
 the otf-level service will respond on success with the following data structure:
-```
+
+```json
 {
   "assessmentScore": 250,
   "assessmentToken": "mastered",
@@ -41,19 +45,19 @@ the otf-level service will respond on success with the following data structure:
 The response echoes the input parameters for completeness, and identifies the service instance that processed the request.
 The result of the levelling is in the calculatedLevel block.
 
-All configuration options can be set on the command-line using flags, via envronment variables, or by using a configuration file.
+All configuration options can be set on the command-line using flags, via environment variables, or by using a configuration file.
 Configuration can use any or all of these methods in combination.
 For example options such as the address and hostname of the classifier server might best be accessed from environment variables, whilst the service name of the otf-align instance might be supplied in a json configuration file.
 
-Configuration flags are capitalised and prefixed with OTF_ALIGN_SRVC when supplied as environment variables; so flag --niasPort on the commnad-line becomes 
+Configuration flags are capitalised and prefixed with OTF_ALIGN_SRVC when supplied as environment variables; so flag --niasPort on the command-line becomes
 
-```
+```bash
 OTF_ALIGN_SRVC_NIASPORT=1323
 ```
 
 when expressed as an environment variable and
 
-```
+```json
 { "niasPort":1323 }
 ```
 
@@ -72,62 +76,71 @@ These are the configuration options:
 |niasPort|int|yes|1323|port of the n3w service|
 |niasToken|string|yes|a demo token|jwt token for accessing the n3w server|
 
-# levelling methods
+## levelling methods
+
 otf-level is a facade service which will invoke further services in order to determine the nationally scaled score of a particular assessment result or observation.
 
-The levelling process begins by retrieving the score map for any given NNLP ProgressionLevel (suppplied as an input parameter). This details the available range of scores for the ProgressionLevel, as well as high-water-mark scores for partial and full achievement of a level.
+The levelling process begins by retrieving the score map for any given NNLP ProgressionLevel (supplied as an input parameter). This details the available range of scores for the ProgressionLevel, as well as high-water-mark scores for partial and full achievement of a level.
 
 Two styles of levelling are currently supported:
-- mapped 
-    -  alignment is resolved by mapping tokens from the original observation/assessment data to existing data structures that themselves are linked to the NNLP standard scale. For example, an assessment result may contain a numeric score or a letter-grade or some other textual judgement. The leveller uses a map of values from the provider system, or links to a known scale such as NAPLAN, which are resolved to numbers or ranges in the national scale.
-- prescribed    
-    - the provider assessment supplies an indicator token such as 'mastered' or 'achieved', but no supporting score information. The judgement is used to extract a suitable value from the score-map for the progression-level.
 
-# pre-requisites
+- mapped
+  - alignment is resolved by mapping tokens from the original observation/assessment data to existing data structures that themselves are linked to the NNLP standard scale. For example, an assessment result may contain a numeric score or a letter-grade or some other textual judgement. The leveller uses a map of values from the provider system, or links to a known scale such as NAPLAN, which are resolved to numbers or ranges in the national scale.
+- prescribed
+  - the provider assessment supplies an indicator token such as 'mastered' or 'achieved', but no supporting score information. The judgement is used to extract a suitable value from the score-map for the progression-level.
+
+## pre-requisites
+
 The otf-level service requires supporting services to be available:
+
 - n3w, provides the lookup graphs for levelling
-    + binary can be created from http://github.com/nsip/n3-web
+  - binary can be created from <http://github.com/nsip/n3-web>
 - benthos, workflow engine installed and available
-- nats-streaming-server, message broker installed and avialable
+- nats-streaming-server, message broker installed and available
 
+## benthos workflow
 
-# benthos workflow
+### note
 
-### note 
 The easiest way to set up and run the whole PDM workflow is to get the
 Docker images which will be available soon...
 In the meantime, you can find a tmux script that starts all the services and dependencies here:
-https://github.com/nsip/otf-testdata/tree/master/tmux/tmux_pdm.sh
-
+<https://github.com/nsip/otf-testdata/tree/master/tmux/tmux_pdm.sh>
 
 As with otf-align the service is packaged with a benthos workflow which allows the testing of otf-align in context and interacting with the other progress data management services.
 
-The levelling workflow assumes that the align workflow is already up and running, see the otf-align project for instructions on this. 
-The otf-level reads data from a nats queue fed by the ouput of the otf-align service.
+The levelling workflow assumes that the align workflow is already up and running, see the otf-align project for instructions on this.
+The otf-level reads data from a nats queue fed by the output of the otf-align service.
 
-Prior to running the worklfow set an environment variable 
-```
+Prior to running the workflow set an environment variable
+
+```bash
 export PDM_ROOT=~/otfdata 
 ```
+
 as a location for the workflow to write its data to
 
 In order to add the otf-level service to the chain, first start the otf-level service
-```
+
+```bash
 > ./otf-level --port 1327
 ```
 
 then navigate to the benthos directory and run the data-processing workflow
-```
+
+```bash
 otf-level/cmd/benthos> ./run_benthos_level_data.sh
 ```
 
 which will connect to the existing chain of services and send data to the levelling service, and post the response messages to
-```
+
+```bash
 ${PDM_ROOT}/audit/level
 ```
 
 A fully processed message example:
-```
+
+```json
 {
     "meta":
     {
@@ -205,5 +218,3 @@ A fully processed message example:
     }
 }
 ```
-
-
